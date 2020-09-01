@@ -1,0 +1,11 @@
+#C# Visual Studio project pattern
+#.gitignore
+
+.vs/
+obj/
+*.user
+*.sln
+
+
+
+
