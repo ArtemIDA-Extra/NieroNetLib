@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace NieroNetLib
 {
-    static class NetworkTools
+    public static class NetworkTools
     {
         public static List<IPAddress> GenerateIpList(string netIP = "0.0.0.0", string netMask = "255.255.255.0")
         {
@@ -50,7 +50,6 @@ namespace NieroNetLib
                                 temp = IPAddress.Parse($"{Node_0}.{Node_1}.{Node_2}.{Node_3}");
                                 ipAddresses.Add(temp);
                             }
-
                         }
                     }
                 }
@@ -58,22 +57,41 @@ namespace NieroNetLib
             return ipAddresses;
         }
 
-        public static async Task<List<PingReply>> ScanLocaNetwork(string netIP = "192.168.0.1", string netMask = "255.255.255.0")
+        public static async Task<List<(IPAddress, PingReply)>> ScanLocaNetwork(string netIP = "192.168.0.1", string netMask = "255.255.255.0")
         {
             List<IPAddress> ipAddressesForScan = GenerateIpList(netIP, netMask);
+            List<Task<PingReply>> asyncPingTasks = new List<Task<PingReply>>();
+            List<(IPAddress, PingReply)> results = new List<(IPAddress, PingReply)>();
 
-            Ping pingSender = new Ping();
-            PingOptions options = new PingOptions();
+            foreach(IPAddress ip in ipAddressesForScan)
+            {
+                asyncPingTasks.Add(new Ping().SendPingAsync(ip, 2000));      // надо создавать новый Ping каждый раз
+            }
+            PingReply[] pingsReplies = await Task.WhenAll(asyncPingTasks);
+            for(int i = 0; i < pingsReplies.Length; i++)
+            {
+                results.Add((ipAddressesForScan[i], pingsReplies[i]));
+            }
+            
+            return results;
+        }
 
-            options.Ttl = 128;                                                        // Время жизни пакета ICMP (измеряется в прыгах) 
-            options.DontFragment = true;                                              // Не разбивать пакет на порции (может понадобится для проверки макс. пропускной способности)
-            string data = "For the glory of mankind! With love, 2B, 9S, A2, YoRHa!";  // Ну я могу же оставить пару пасхалок :3
-            int timeout = 120;                                                        // Фиг знает, в чем оно измеряется, мсдн не говорит
+        public static async Task<List<(IPAddress, PingReply)>> PingIps(List<IPAddress> ipAddresses)
+        {
+            List<Task<PingReply>> asyncPingTasks = new List<Task<PingReply>>();
+            List<(IPAddress, PingReply)> results = new List<(IPAddress, PingReply)>();
 
-            var tasks = ipAddressesForScan.Select(ip => pingSender.SendPingAsync(ip,2000));
-            var result = await Task.WhenAll(tasks);
+            foreach (IPAddress ip in ipAddresses)
+            {
+                asyncPingTasks.Add(new Ping().SendPingAsync(ip, 2000));      //надо создавать новый Ping каждый раз
+            }
+            PingReply[] pingsReplies = await Task.WhenAll(asyncPingTasks);
+            for (int i = 0; i < pingsReplies.Length; i++)
+            {
+                results.Add((ipAddresses[i], pingsReplies[i]));
+            }
 
-            return result.ToList();
+            return results;
         }
 
         public static void GetNetworkInterfaces()
@@ -86,6 +104,25 @@ namespace NieroNetLib
                 throw new Exception ("Empty Network Interface list");
             }
 
+        }
+
+        public static List<IPAddress> GetLocalIPv4(NetworkInterfaceType _type)
+        {
+            List<IPAddress> ipAddrList = new List<IPAddress>();
+            foreach (NetworkInterface item in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (item.NetworkInterfaceType == _type && item.OperationalStatus == OperationalStatus.Up)
+                {
+                    foreach (UnicastIPAddressInformation ip in item.GetIPProperties().UnicastAddresses)
+                    {
+                        if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            ipAddrList.Add(ip.Address);
+                        }
+                    }
+                }
+            }
+            return ipAddrList;
         }
     }
 
