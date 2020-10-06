@@ -63,16 +63,16 @@ namespace NieroNetLib
             List<Task<PingReply>> asyncPingTasks = new List<Task<PingReply>>();
             List<(IPAddress, PingReply)> results = new List<(IPAddress, PingReply)>();
 
-            foreach(IPAddress ip in ipAddressesForScan)
+            foreach (IPAddress ip in ipAddressesForScan)
             {
                 asyncPingTasks.Add(new Ping().SendPingAsync(ip, 2000));      // надо создавать новый Ping каждый раз
             }
             PingReply[] pingsReplies = await Task.WhenAll(asyncPingTasks);
-            for(int i = 0; i < pingsReplies.Length; i++)
+            for (int i = 0; i < pingsReplies.Length; i++)
             {
                 results.Add((ipAddressesForScan[i], pingsReplies[i]));
             }
-            
+
             return results;
         }
 
@@ -94,35 +94,103 @@ namespace NieroNetLib
             return results;
         }
 
-        public static void GetNetworkInterfaces()
+        public static List<NetworkInterface> GetNetworkInterfaces(OperationalStatus status, params NetworkInterfaceType[] interfaceTypes)
         {
-            IPGlobalProperties computerProperties = IPGlobalProperties.GetIPGlobalProperties();
-            NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
+            List<NetworkInterface> allAviableInterfaces, selectedInterfaces = new List<NetworkInterface>();
 
-            if (nics == null || nics.Length < 1)
+            allAviableInterfaces = NetworkInterface.GetAllNetworkInterfaces().ToList();
+
+            if (interfaceTypes.Length != 0)
             {
-                throw new Exception ("Empty Network Interface list");
+                foreach (NetworkInterface netInt in allAviableInterfaces)
+                {
+                    if (interfaceTypes.Contains(netInt.NetworkInterfaceType) && netInt.OperationalStatus == status)
+                    {
+                        selectedInterfaces.Add(netInt);
+                    }
+                }
+                return selectedInterfaces;
             }
-
+            else
+            {
+                foreach(NetworkInterface netInt in allAviableInterfaces)
+                {
+                    if (netInt.OperationalStatus == status)
+                    {
+                        selectedInterfaces.Add(netInt);
+                    }
+                }
+                return selectedInterfaces;
+            }
         }
 
-        public static List<IPAddress> GetLocalIPv4(NetworkInterfaceType _type)
+        public static List<IPAddress> GetLocalIPv4(OperationalStatus status, params NetworkInterfaceType[] interfaceTypes)
         {
-            List<IPAddress> ipAddrList = new List<IPAddress>();
-            foreach (NetworkInterface item in NetworkInterface.GetAllNetworkInterfaces())
+            List<IPAddress> IPAddresList = new List<IPAddress>();
+            foreach (NetworkInterface inter in GetNetworkInterfaces(status))
             {
-                if (item.NetworkInterfaceType == _type && item.OperationalStatus == OperationalStatus.Up)
+                if (interfaceTypes.Contains(inter.NetworkInterfaceType))
                 {
-                    foreach (UnicastIPAddressInformation ip in item.GetIPProperties().UnicastAddresses)
+                    foreach (UnicastIPAddressInformation ip in inter.GetIPProperties().UnicastAddresses)
                     {
                         if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
                         {
-                            ipAddrList.Add(ip.Address);
+                            IPAddresList.Add(ip.Address);
                         }
                     }
                 }
             }
-            return ipAddrList;
+            return IPAddresList;
+        }
+
+        //Can upgrade to search mac address of ip (|arp -a| win command)
+        public static List<(IPAddress, string)> GetDnsNamesOfIps(List<IPAddress> IPAddresses)
+        {
+            List<(IPAddress IP, string Name)> resultList = new List<(IPAddress, string)>();
+
+            foreach (IPAddress ip in IPAddresses)
+            {
+                (IPAddress IP, string Name) SelectedIpInfo;
+                SelectedIpInfo.IP = ip;
+
+                try
+                {
+                    SelectedIpInfo.Name = Dns.GetHostEntry(ip).HostName.Split('.')[0];
+                }
+                catch (Exception ex)
+                {
+                    SelectedIpInfo.Name = string.Empty;
+                }
+
+                resultList.Add(SelectedIpInfo);
+            }
+            return resultList;
+        }
+
+        public static string GetMyDeviceName()
+        {
+            return Dns.GetHostName();
+        }
+
+        public static string BytesConvert(double bytes)
+        {
+            if (bytes >= Math.Pow(1024, 4))
+            {
+                return $"{Math.Round(bytes / Math.Pow(1024, 4), 1)} Tb";
+            }
+            if (bytes >= Math.Pow(1024, 3))
+            {
+                return $"{Math.Round(bytes / Math.Pow(1024, 3), 1)} Gb";
+            }
+            if (bytes >= Math.Pow(1024, 2))
+            {
+                return $"{Math.Round(bytes / Math.Pow(1024, 2), 1)} Mb";
+            }
+            if (bytes >= 1024)
+            {
+                return $"{Math.Round(bytes / 1024, 1)} Kb";
+            }
+            return $"{Math.Round(bytes, 0)} b";
         }
     }
 
