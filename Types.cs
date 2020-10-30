@@ -10,7 +10,7 @@ using NieroNetLib;
 
 namespace NieroNetLib.Types
 {
-    enum NetScanStatus
+    public enum NetScanStatus
     {
         Ready = 1,
         ScanStarted = 2,
