@@ -10,12 +10,22 @@ using NieroNetLib;
 
 namespace NieroNetLib.Types
 {
+    enum NetScanStatus
+    {
+        Ready = 1,
+        ScanStarted = 2,
+        SendingPings = 3,
+        CompilingPingResponse = 4,
+        Completed = 5
+    }
+
     public class BasicInterfaceInfo
     {
         public NetworkInterface Interface { get; private set; }
         public NetworkInterfaceType Type { get; private set; }
 
         public string Name { get; private set; }
+        public string Description { get; private set; }
         public PhysicalAddress MacAddress { get; private set; }
         public long Speed { get; private set; }
         public string ActualSpeed { get; private set; }
@@ -36,6 +46,7 @@ namespace NieroNetLib.Types
             SpeedUpdateTimer.Enabled = true;
 
             Name = Interface.Name;
+            Description = Interface.Description;
             MacAddress = Interface.GetPhysicalAddress();
 
             foreach(UnicastIPAddressInformation ip in Interface.GetIPProperties().UnicastAddresses)
@@ -87,5 +98,10 @@ namespace NieroNetLib.Types
                 }
             });
         }
+
+        public static implicit operator NetworkInterface(BasicInterfaceInfo interfaceInfo) => interfaceInfo.Interface;
+        public static explicit operator BasicInterfaceInfo(NetworkInterface networkInter) => new BasicInterfaceInfo(networkInter);
+
+        public override string ToString() => $"{Name} ({IPv4})";
     }
 }
