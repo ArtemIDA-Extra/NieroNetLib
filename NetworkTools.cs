@@ -14,15 +14,22 @@ namespace NieroNetLib
         public static List<IPAddress> GenerateIpList(IPAddress netIP, IPAddress netMask)
         {
             List<IPAddress> ipAddresses = new List<IPAddress>();
+            int NodeTemplate_0 = 255, NodeTemplate_1 = 255, NodeTemplate_2 = 255, NodeTemplate_3 = 255;
             string[] netMaskNodes_str = netMask.ToString().Split('.');
             string[] netIPNodes_str = netIP.ToString().Split('.');
-            for (int Node_0 = Int32.Parse(netMaskNodes_str[0]); Node_0 <= 255; Node_0++)
+
+            if (Int32.Parse(netMaskNodes_str[0]) != 255) NodeTemplate_0 = Int32.Parse(netIPNodes_str[0]);
+            if (Int32.Parse(netMaskNodes_str[1]) != 255) NodeTemplate_1 = Int32.Parse(netIPNodes_str[1]);
+            if (Int32.Parse(netMaskNodes_str[2]) != 255) NodeTemplate_2 = Int32.Parse(netIPNodes_str[2]);
+            if (Int32.Parse(netMaskNodes_str[3]) != 255) NodeTemplate_3 = Int32.Parse(netIPNodes_str[3]);
+
+            for (int Node_0 = NodeTemplate_0; Node_0 <= 255; Node_0++)
             {
-                for (int Node_1 = Int32.Parse(netMaskNodes_str[1]); Node_1 <= 255; Node_1++)
+                for (int Node_1 = NodeTemplate_1; Node_1 <= 255; Node_1++)
                 {
-                    for (int Node_2 = Int32.Parse(netMaskNodes_str[2]); Node_2 <= 255; Node_2++)
+                    for (int Node_2 = NodeTemplate_2; Node_2 <= 255; Node_2++)
                     {
-                        for (int Node_3 = Int32.Parse(netMaskNodes_str[3]); Node_3 <= 255; Node_3++)
+                        for (int Node_3 = NodeTemplate_3; Node_3 <= 255; Node_3++)
                         {
                             IPAddress temp;
                             if (Int32.Parse(netMaskNodes_str[0]) == 255 && Int32.Parse(netMaskNodes_str[1]) == 255 && Int32.Parse(netMaskNodes_str[2]) == 255 && Int32.Parse(netMaskNodes_str[3]) == 255)
@@ -122,6 +129,46 @@ namespace NieroNetLib
                 }
             }
             return IPAddresList;
+        }
+
+        public static List<IPAddress> GetNetworkInterfacesGateways(OperationalStatus status, params NetworkInterfaceType[] interfaceTypes)
+        {
+            List<NetworkInterface> allAviableInterfaces = NetworkInterface.GetAllNetworkInterfaces().ToList();
+            List<IPAddress> resultGateways = new List<IPAddress>();
+            if (interfaceTypes.Length != 0)
+            {
+                foreach (NetworkInterface netInt in allAviableInterfaces)
+                {
+                    if (interfaceTypes.Contains(netInt.NetworkInterfaceType) && netInt.OperationalStatus == status)
+                    {
+                        foreach(GatewayIPAddressInformation gatewayInfo in netInt.GetIPProperties().GatewayAddresses)
+                        {
+                            if (!resultGateways.Contains(gatewayInfo.Address))
+                            {
+                                resultGateways.Add(gatewayInfo.Address);
+                            }
+                        }
+                    }
+                }
+                return resultGateways;
+            }
+            else
+            {
+                foreach (NetworkInterface netInt in allAviableInterfaces)
+                {
+                    if (netInt.OperationalStatus == status)
+                    {
+                        foreach (GatewayIPAddressInformation gatewayInfo in netInt.GetIPProperties().GatewayAddresses)
+                        {
+                            if (!resultGateways.Contains(gatewayInfo.Address))
+                            {
+                                resultGateways.Add(gatewayInfo.Address);
+                            }
+                        }
+                    }
+                }
+                return resultGateways;
+            }
         }
 
         //Can upgrade to search mac address of ip (|arp -a| win command)

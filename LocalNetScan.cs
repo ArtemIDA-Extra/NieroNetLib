@@ -6,31 +6,32 @@ using System.Net;
 using System.Net.NetworkInformation;
 using NieroNetLib.Types;
 using System.Linq;
+using System.Threading;
 
 namespace NieroNetLib
 {
-    class LocalNetScan
+    public class LocalNetScan
     {
         public IPAddress NetMask { get; private set; }
-        public IPAddress NetIp { get; private set; }
+        public IPAddress Gateway { get; private set; }
         public int Timeout { get; private set; }
+        private NetScanStatus p_ScanStatus;
         public NetScanStatus ScanStatus
         {
             private set
             {
-                ScanStatus = value;
-                ScanStatusUpdatedEventArgs e = new ScanStatusUpdatedEventArgs
+                p_ScanStatus = value;
+                ScanStatusUpdatedEventArgs e = new ScanStatusUpdatedEventArgs()
                 {
                     ActualStatus = ScanStatus
                 };
-                OnStatusUpdate(e);
+                OnStatusUpdated(e);
             }
-            get { return ScanStatus; }
+            get { return p_ScanStatus; }
         }
         private TimeSpan? completeElapsedTime;
         public TimeSpan? ElapsedTime
         {
-            private set { }
             get
             {
                 if (ScanStatus != NetScanStatus.Completed && ScanStatus != NetScanStatus.Ready)
@@ -50,35 +51,55 @@ namespace NieroNetLib
         public DateTime? StartData { get; private set; }
         public DateTime? FinishedData { get; private set; }
         public int TotalIpsForScan { get; private set; }
+        private int p_SentPingsCount;
+        private int p_CompletedPingsCount;
         public int SentPingsCount
         {
             private set
             {
-                SentPingsCount = value;
-                PingsCountUpdatedEventArgs e = new PingsCountUpdatedEventArgs
+                p_SentPingsCount = value;
+                SentPingsCountUpdatedEventArgs e = new SentPingsCountUpdatedEventArgs
                 {
                     ActualElapsedTime = ElapsedTime,
-                    ActualPingsCount = SentPingsCount,
+                    ActualSentPingsCount = SentPingsCount,
                     TotalNeededPings = TotalIpsForScan
                 };
-                OnPingsCountUpdate(e);
+                OnSentPingsCountUpdated(e);
             }
-            get { return SentPingsCount; }
+            get { return p_SentPingsCount; }
+        }
+        public int CompletedPingsCount
+        {
+            private set
+            {
+                p_CompletedPingsCount = value;
+                CompletedPingsCountUpdatedEventArgs e = new CompletedPingsCountUpdatedEventArgs
+                {
+                    ActualElapsedTime = ElapsedTime,
+                    ActualCompletedPingsCount = CompletedPingsCount,
+                    TotalNeededPings = TotalIpsForScan
+                };
+                OnCompletedPingsCountUpdated(e);
+            }
+            get { return p_CompletedPingsCount; }
         }
         public bool Locked { get; private set; }
         public List<(IPAddress, PingReply)> ScanResult { get; private set; }
 
-        LocalNetScan(IPAddress netIP, IPAddress netMask, int timeout = 2000)
+        public LocalNetScan(IPAddress gateway, IPAddress netMask, int timeout = 100)
         {
             ScanResult = null;
-            NetIp = netIP;
+            Gateway = gateway;
             NetMask = netMask;
-            Timeout = timeout;
+            if (timeout >= 0)
+                Timeout = timeout;
+            else
+                throw new Exception("Timeout cannot be lower than 0");
             completeElapsedTime = null;
-            ElapsedTime = null;
             StartData = FinishedData = null;
-            TotalIpsForScan = SentPingsCount = 0;
             ScanStatus = NetScanStatus.Ready;
+            TotalIpsForScan = SentPingsCount = CompletedPingsCount = 0;
+            ScanResult = new List<(IPAddress, PingReply)>();
             Locked = false;
         }
 
@@ -89,32 +110,57 @@ namespace NieroNetLib
                 StartData = DateTime.Now;
                 ScanStatus = NetScanStatus.ScanStarted;
 
-                List<IPAddress> ipAddressesForScan = NetworkTools.GenerateIpList(NetIp, NetMask);
-                List<Task<PingReply>> asyncPingTasks = new List<Task<PingReply>>();
+                List<IPAddress> IpAddressesForScan = NetworkTools.GenerateIpList(Gateway, NetMask);
+                List<Task<PingReply>> AsyncPingTasks = new List<Task<PingReply>>();
 
-                TotalIpsForScan = ipAddressesForScan.Count;
+                TotalIpsForScan = IpAddressesForScan.Count;
                 ScanStatus = NetScanStatus.SendingPings;
 
-                foreach (IPAddress ip in ipAddressesForScan)
+                string data = "YoRHa. For the Glory of Mankind!";
+                byte[] buffer = Encoding.ASCII.GetBytes(data);
+
+                foreach (IPAddress ip in IpAddressesForScan)
                 {
-                    asyncPingTasks.Add(new Ping().SendPingAsync(ip, Timeout));      // надо создавать новый Ping каждый раз
+                    Ping AsyncPingSender = new Ping();
+                    Ping AsyncPingSenderAlt = new Ping();
+                    AsyncPingSender.PingCompleted += PingCompleted;
+                    AsyncPingSender.SendAsync(ip, Timeout);
+                    AsyncPingTasks.Add(AsyncPingSenderAlt.SendPingAsync(ip, Timeout));
                     SentPingsCount++;
                 }
 
                 ScanStatus = NetScanStatus.CompilingPingResponse;
 
-                PingReply[] pingsReplies = await Task.WhenAll(asyncPingTasks);
+                PingReply[] pingsReplies = await Task.WhenAll(AsyncPingTasks);
+
                 for (int i = 0; i < pingsReplies.Length; i++)
                 {
-                    ScanResult.Add((ipAddressesForScan[i], pingsReplies[i]));
+                    ScanResult.Add((IpAddressesForScan[i], pingsReplies[i]));
                 }
 
                 FinishedData = DateTime.Now;
-                completeElapsedTime = StartData - FinishedData;
+                completeElapsedTime = FinishedData - StartData;
                 ScanStatus = NetScanStatus.Completed;
                 Locked = true;
             }
-            else throw new Exception("This scan object has already been scanned and is locked for re-scanning. You can find out the results of the previous scan.");
+            else
+            {
+                throw new Exception("Object is locked!");
+            }
+        }
+
+        private void PingCompleted(object sender, PingCompletedEventArgs e)
+        {
+            CompletedPingsCount++;
+            if(e.Reply.Status == IPStatus.Success)
+            {
+                NewSuccessfullyPingReplyEventArgs args = new NewSuccessfullyPingReplyEventArgs
+                {
+                    Address = e.Reply.Address,
+                    Reply = e.Reply
+                };
+                OnNewSuccessfullyPingReply(args);
+            }
         }
 
         public List<(IPAddress, PingReply)> FilterResults(IPStatus ipStatus)
@@ -174,30 +220,53 @@ namespace NieroNetLib
             else return null;
         }
 
-        protected virtual void OnPingsCountUpdate(PingsCountUpdatedEventArgs e)
+        protected virtual void OnSentPingsCountUpdated(SentPingsCountUpdatedEventArgs e)
         {
-            PingsCountUpdated?.Invoke(this, e);
+            SentPingsCountUpdated?.Invoke(this, e);
         }
-        protected virtual void OnStatusUpdate(ScanStatusUpdatedEventArgs e)
+        protected virtual void OnCompletedPingsCountUpdated(CompletedPingsCountUpdatedEventArgs e)
+        {
+            CompletedPingsCountUpdated?.Invoke(this, e);
+        }
+        protected virtual void OnNewSuccessfullyPingReply(NewSuccessfullyPingReplyEventArgs e)
+        {
+            NewSuccessfullyPingReply?.Invoke(this, e);
+        }
+        protected virtual void OnStatusUpdated(ScanStatusUpdatedEventArgs e)
         {
             ScanStatusUpdated?.Invoke(this, e);
         }
 
-        public event PingsCountUpdatedEventHandler PingsCountUpdated;
+        public event SentPingsCountUpdatedEventHandler SentPingsCountUpdated;
+        public event CompletedPingsCountUpdatedEventHandler CompletedPingsCountUpdated;
+        public event NewSuccessfullyPingReplyEventHandler NewSuccessfullyPingReply;
         public event ScanStatusUpdatedEventHandler ScanStatusUpdated;
     }
 
-    public class PingsCountUpdatedEventArgs : EventArgs
+    public class SentPingsCountUpdatedEventArgs : EventArgs
     {
-        public int ActualPingsCount;
+        public int ActualSentPingsCount;
         public int TotalNeededPings;
         public TimeSpan? ActualElapsedTime;
+    }
+    public class CompletedPingsCountUpdatedEventArgs : EventArgs
+    {
+        public int ActualCompletedPingsCount;
+        public int TotalNeededPings;
+        public TimeSpan? ActualElapsedTime;
+    }
+    public class NewSuccessfullyPingReplyEventArgs : EventArgs
+    {
+        public IPAddress Address;
+        public PingReply Reply;
     }
     public class ScanStatusUpdatedEventArgs : EventArgs
     {
         public NetScanStatus ActualStatus;
     }
 
-    public delegate void PingsCountUpdatedEventHandler(Object sender, PingsCountUpdatedEventArgs e);
+    public delegate void SentPingsCountUpdatedEventHandler(Object sender, SentPingsCountUpdatedEventArgs e);
+    public delegate void CompletedPingsCountUpdatedEventHandler(Object sender, CompletedPingsCountUpdatedEventArgs e);
+    public delegate void NewSuccessfullyPingReplyEventHandler(Object sender, NewSuccessfullyPingReplyEventArgs e);
     public delegate void ScanStatusUpdatedEventHandler(Object sender, ScanStatusUpdatedEventArgs e);
 }

@@ -30,6 +30,7 @@ namespace NieroNetLib.Types
         public long Speed { get; private set; }
         public string ActualSpeed { get; private set; }
         public double ActualSpeedInBytes { get; private set; }
+        public List<IPAddress> Gateways { get; private set; }
         public IPAddress IPv4 { get; private set; }
         public IPAddress IPv6 { get; private set; }
 
@@ -49,7 +50,12 @@ namespace NieroNetLib.Types
             Description = Interface.Description;
             MacAddress = Interface.GetPhysicalAddress();
 
-            foreach(UnicastIPAddressInformation ip in Interface.GetIPProperties().UnicastAddresses)
+            IPInterfaceProperties IpProperties = networkInterface.GetIPProperties();
+            foreach(GatewayIPAddressInformation GatewayIpAddressInfo in IpProperties.GatewayAddresses)
+            {
+                Gateways.Add(GatewayIpAddressInfo.Address);
+            }
+            foreach(UnicastIPAddressInformation ip in IpProperties.UnicastAddresses)
             {
                 if (Interface.Supports(NetworkInterfaceComponent.IPv4))
                 {
