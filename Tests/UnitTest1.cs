@@ -1,6 +1,8 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Net;
+using System.Net.NetworkInformation;
+using System.Linq;
 using NieroNetLib.Types;
 
 namespace NieroNetLib.Tests
@@ -22,7 +24,7 @@ namespace NieroNetLib.Tests
         public void InitFieldsTest()
         {
             LocalNetScan testObj = new LocalNetScan(IPAddress.Parse("127.0.0.1"), IPAddress.Parse("255.255.255.0"));
-            if(!(testObj.ScanResult == null &&
+            if(!(testObj.ScanResult != null &&
                testObj.Gateway != null &&
                testObj.NetMask != null &&
                testObj.Timeout >= 0 &&
@@ -44,6 +46,19 @@ namespace NieroNetLib.Tests
         {
             LocalNetScan testObj = new LocalNetScan(IPAddress.Parse("192.168.0.1"), IPAddress.Parse("255.255.255.0"));
             testObj.StartScanning();
+        }
+    }
+
+    [TestClass]
+    public class BasicInterfaceInfoTest
+    { 
+        [TestMethod]
+        public void CreateTest()
+        {
+            foreach (NetworkInterface inter in NetworkTools.GetNetworkInterfaces(System.Net.NetworkInformation.OperationalStatus.Up))
+            {
+                BasicInterfaceInfo inf = new BasicInterfaceInfo(inter);
+            }
         }
     }
 }

@@ -51,11 +51,12 @@ namespace NieroNetLib.Types
             MacAddress = Interface.GetPhysicalAddress();
 
             IPInterfaceProperties IpProperties = networkInterface.GetIPProperties();
-            foreach(GatewayIPAddressInformation GatewayIpAddressInfo in IpProperties.GatewayAddresses)
+            Gateways = new List<IPAddress>();
+            foreach (GatewayIPAddressInformation GatewayIpAddressInfo in IpProperties.GatewayAddresses)
             {
                 Gateways.Add(GatewayIpAddressInfo.Address);
             }
-            foreach(UnicastIPAddressInformation ip in IpProperties.UnicastAddresses)
+            foreach (UnicastIPAddressInformation ip in IpProperties.UnicastAddresses)
             {
                 if (Interface.Supports(NetworkInterfaceComponent.IPv4))
                 {

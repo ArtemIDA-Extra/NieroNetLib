@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <Title>Frostleaf</Title>
     <Version>0.1.0</Version>
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
