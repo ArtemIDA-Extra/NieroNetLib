@@ -145,7 +145,8 @@ namespace NieroNetLib
                         {
                             if (!resultGateways.Contains(gatewayInfo.Address))
                             {
-                                resultGateways.Add(gatewayInfo.Address);
+                                if (gatewayInfo.Address.AddressFamily == AddressFamily.InterNetwork)
+                                    resultGateways.Add(gatewayInfo.Address);
                             }
                         }
                     }
@@ -162,7 +163,8 @@ namespace NieroNetLib
                         {
                             if (!resultGateways.Contains(gatewayInfo.Address))
                             {
-                                resultGateways.Add(gatewayInfo.Address);
+                                if (gatewayInfo.Address.AddressFamily == AddressFamily.InterNetwork)
+                                    resultGateways.Add(gatewayInfo.Address);
                             }
                         }
                     }
