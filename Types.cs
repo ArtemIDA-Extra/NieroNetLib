@@ -14,9 +14,10 @@ namespace NieroNetLib.Types
     {
         Ready = 1,
         ScanStarted = 2,
-        SendingPings = 3,
-        CompilingPingResponse = 4,
-        Completed = 5
+        GeneratingIpList = 3,
+        SendingPings = 4,
+        CompilingPingResponse = 5,
+        Completed = 6
     }
 
     public class BasicInterfaceInfo

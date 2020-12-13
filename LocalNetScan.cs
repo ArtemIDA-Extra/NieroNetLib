@@ -50,10 +50,10 @@ namespace NieroNetLib
         }
         public DateTime? StartData { get; private set; }
         public DateTime? FinishedData { get; private set; }
-        public int TotalIpsForScan { get; private set; }
-        private int p_SentPingsCount;
-        private int p_CompletedPingsCount;
-        public int SentPingsCount
+        public long TotalIpsForScan { get; private set; }
+        private long p_SentPingsCount;
+        private long p_CompletedPingsCount;
+        public long SentPingsCount
         {
             private set
             {
@@ -68,7 +68,7 @@ namespace NieroNetLib
             }
             get { return p_SentPingsCount; }
         }
-        public int CompletedPingsCount
+        public long CompletedPingsCount
         {
             private set
             {
@@ -98,7 +98,8 @@ namespace NieroNetLib
             completeElapsedTime = null;
             StartData = FinishedData = null;
             ScanStatus = NetScanStatus.Ready;
-            TotalIpsForScan = SentPingsCount = CompletedPingsCount = 0;
+            TotalIpsForScan = NetworkTools.CalculateNumberOfIPs(netMask);
+            SentPingsCount = CompletedPingsCount = 0;
             ScanResult = new List<(IPAddress, PingReply)>();
             Locked = false;
         }
@@ -110,6 +111,7 @@ namespace NieroNetLib
                 StartData = DateTime.Now;
                 ScanStatus = NetScanStatus.ScanStarted;
 
+                ScanStatus = NetScanStatus.GeneratingIpList;
                 List<IPAddress> IpAddressesForScan = NetworkTools.GenerateIpList(Gateway, NetMask);
                 List<Task<PingReply>> AsyncPingTasks = new List<Task<PingReply>>();
 
@@ -245,14 +247,14 @@ namespace NieroNetLib
 
     public class SentPingsCountUpdatedEventArgs : EventArgs
     {
-        public int ActualSentPingsCount;
-        public int TotalNeededPings;
+        public long ActualSentPingsCount;
+        public long TotalNeededPings;
         public TimeSpan? ActualElapsedTime;
     }
     public class CompletedPingsCountUpdatedEventArgs : EventArgs
     {
-        public int ActualCompletedPingsCount;
-        public int TotalNeededPings;
+        public long ActualCompletedPingsCount;
+        public long TotalNeededPings;
         public TimeSpan? ActualElapsedTime;
     }
     public class NewSuccessfullyPingReplyEventArgs : EventArgs

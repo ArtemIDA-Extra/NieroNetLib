@@ -11,57 +11,52 @@ namespace NieroNetLib
 {
     public static class NetworkTools
     {
-        public static List<IPAddress> GenerateIpList(IPAddress netIP, IPAddress netMask)
+        public static List<IPAddress> GenerateIpList(IPAddress gateway, IPAddress netMask)
         {
             List<IPAddress> ipAddresses = new List<IPAddress>();
-            int NodeTemplate_0 = 255, NodeTemplate_1 = 255, NodeTemplate_2 = 255, NodeTemplate_3 = 255;
             string[] netMaskNodes_str = netMask.ToString().Split('.');
-            string[] netIPNodes_str = netIP.ToString().Split('.');
+            string[] gatewayNodes_str = gateway.ToString().Split('.');
 
-            if (Int32.Parse(netMaskNodes_str[0]) != 255) NodeTemplate_0 = Int32.Parse(netIPNodes_str[0]);
-            if (Int32.Parse(netMaskNodes_str[1]) != 255) NodeTemplate_1 = Int32.Parse(netIPNodes_str[1]);
-            if (Int32.Parse(netMaskNodes_str[2]) != 255) NodeTemplate_2 = Int32.Parse(netIPNodes_str[2]);
-            if (Int32.Parse(netMaskNodes_str[3]) != 255) NodeTemplate_3 = Int32.Parse(netIPNodes_str[3]);
-
-            for (int Node_0 = NodeTemplate_0; Node_0 <= 255; Node_0++)
+            for (int Node_0 = 0; Node_0 <= 255 - Int32.Parse(netMaskNodes_str[0]); Node_0++)
             {
-                for (int Node_1 = NodeTemplate_1; Node_1 <= 255; Node_1++)
+                for (int Node_1 = 0; Node_1 <= 255 - Int32.Parse(netMaskNodes_str[1]); Node_1++)
                 {
-                    for (int Node_2 = NodeTemplate_2; Node_2 <= 255; Node_2++)
+                    for (int Node_2 = 0; Node_2 <= 255 - Int32.Parse(netMaskNodes_str[2]); Node_2++)
                     {
-                        for (int Node_3 = NodeTemplate_3; Node_3 <= 255; Node_3++)
+                        for (int Node_3 = 0; Node_3 <= 255 - Int32.Parse(netMaskNodes_str[3]); Node_3++)
                         {
-                            IPAddress temp;
-                            if (Int32.Parse(netMaskNodes_str[0]) == 255 && Int32.Parse(netMaskNodes_str[1]) == 255 && Int32.Parse(netMaskNodes_str[2]) == 255 && Int32.Parse(netMaskNodes_str[3]) == 255)
-                            {
-                                temp = IPAddress.Parse("0.0.0.0");
-                                ipAddresses.Add(temp);
-                            }
-                            if (Int32.Parse(netMaskNodes_str[0]) == 255 && Int32.Parse(netMaskNodes_str[1]) == 255 && Int32.Parse(netMaskNodes_str[2]) == 255 && Int32.Parse(netMaskNodes_str[3]) != 255)
-                            {
-                                temp = IPAddress.Parse($"{netIPNodes_str[0]}.{netIPNodes_str[1]}.{netIPNodes_str[2]}.{Node_3}");
-                                ipAddresses.Add(temp);
-                            }
-                            if (Int32.Parse(netMaskNodes_str[0]) == 255 && Int32.Parse(netMaskNodes_str[1]) == 255 && Int32.Parse(netMaskNodes_str[2]) != 255 && Int32.Parse(netMaskNodes_str[3]) != 255)
-                            {
-                                temp = IPAddress.Parse($"{netIPNodes_str[0]}.{netIPNodes_str[1]}.{Node_2}.{Node_3}");
-                                ipAddresses.Add(temp);
-                            }
-                            if (Int32.Parse(netMaskNodes_str[0]) == 255 && Int32.Parse(netMaskNodes_str[1]) != 255 && Int32.Parse(netMaskNodes_str[2]) != 255 && Int32.Parse(netMaskNodes_str[3]) != 255)
-                            {
-                                temp = IPAddress.Parse($"{netIPNodes_str[0]}.{Node_1}.{Node_2}.{Node_3}");
-                                ipAddresses.Add(temp);
-                            }
-                            if (Int32.Parse(netMaskNodes_str[0]) != 255 && Int32.Parse(netMaskNodes_str[1]) != 255 && Int32.Parse(netMaskNodes_str[2]) != 255 && Int32.Parse(netMaskNodes_str[3]) != 255)
-                            {
-                                temp = IPAddress.Parse($"{Node_0}.{Node_1}.{Node_2}.{Node_3}");
-                                ipAddresses.Add(temp);
-                            }
+                            IPAddress tempAddress;
+                            string tempNode0, tempNode1, tempNode2, tempNode3;
+
+                            if (Int32.Parse(netMaskNodes_str[0]) == 255) tempNode0 = gatewayNodes_str[0];
+                            else tempNode0 = (Node_0).ToString();
+                            if (Int32.Parse(netMaskNodes_str[1]) == 255) tempNode1 = gatewayNodes_str[1];
+                            else tempNode1 = (Node_1).ToString();
+                            if (Int32.Parse(netMaskNodes_str[2]) == 255) tempNode2 = gatewayNodes_str[2];
+                            else tempNode2 = (Node_2).ToString();
+                            if (Int32.Parse(netMaskNodes_str[3]) == 255) tempNode3 = gatewayNodes_str[3];
+                            else tempNode3 = (Node_3).ToString();
+
+                            tempAddress = IPAddress.Parse($"{tempNode0}.{tempNode1}.{tempNode2}.{tempNode3}");
+                            ipAddresses.Add(tempAddress);
                         }
                     }
                 }
             }
             return ipAddresses;
+        }
+
+        public static long CalculateNumberOfIPs(IPAddress netMask)
+        {
+            if (netMask == IPAddress.Parse("255.255.255.255")) return 0;
+            long NumberOfIPs = 1;
+            string[] netMaskNodes_str = netMask.ToString().Split('.');
+
+            NumberOfIPs *= (256 - Int32.Parse(netMaskNodes_str[3])); 
+            NumberOfIPs *= (256 - Int32.Parse(netMaskNodes_str[2]));
+            NumberOfIPs *= (256 - Int32.Parse(netMaskNodes_str[1])); 
+            NumberOfIPs *= (256 - Int32.Parse(netMaskNodes_str[0]));
+            return NumberOfIPs;
         }
 
         public static async Task<List<(IPAddress, PingReply)>> PingIps(List<IPAddress> ipAddresses)
