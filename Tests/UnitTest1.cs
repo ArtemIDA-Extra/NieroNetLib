@@ -47,7 +47,7 @@ namespace NieroNetLib.Tests
         public void ScaningTest()
         {
             LocalNetScan testObj = new LocalNetScan(IPAddress.Parse("192.168.0.1"), IPAddress.Parse("255.255.255.0"));
-            testObj.StartScanning();
+            testObj.StartScanningAsync();
         }
     }
 
